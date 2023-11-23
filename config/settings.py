@@ -3,7 +3,7 @@ import environ
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-ENVS_DIR = BASE_DIR / ".env.db"
+ENVS_DIR = BASE_DIR / ".env"
 environ.Env.read_env(ENVS_DIR)
 env = environ.Env()
 
@@ -12,7 +12,7 @@ env = environ.Env()
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-cdwb_wo$d*2c4d98b!(7=ts@a0e6u1yk2@#3n1$^^z93+207f("
+SECRET_KEY = env("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
