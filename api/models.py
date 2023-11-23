@@ -15,6 +15,8 @@ class HouseModel(models.Model):
     )
     area = models.IntegerField()
     floor = models.IntegerField()
-    city = models.CharField(max_length=150)
+    city = models.CharField(max_length=150, db_index=True)
     price = models.FloatField()
-    status = models.CharField(max_length=50, choices=STATUS_CHOICE)
+    status = models.CharField(
+        max_length=50, choices=STATUS_CHOICE, db_index=True
+    )
