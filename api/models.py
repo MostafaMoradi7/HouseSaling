@@ -1,8 +1,6 @@
 from django.db import models
 import uuid
 
-# Create your models here.
-
 
 class HouseModel(models.Model):
     STATUS_CHOICE = (
@@ -12,7 +10,9 @@ class HouseModel(models.Model):
             "BAUGHT",
         ),
     )
-    unique_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    unique_id = models.UUIDField(
+        default=uuid.uuid4, editable=False, unique=True
+    )
     area = models.IntegerField()
     floor = models.IntegerField()
     city = models.CharField(max_length=150)
