@@ -4,9 +4,10 @@ from .models import HouseModel
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.serializers import ValidationError
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import ObjectDoesNotExist
 
 
 class HousePagination(PageNumberPagination):
@@ -24,67 +25,96 @@ class HouseViewSet(ModelViewSet):
     filterset_fields = ("area", "floor", "city", "price", "status")
 
     def create(self, request, *args, **kwargs):
-        data = request.data
-        user = request.user
+        try:
+            data = request.data
+            user = request.user
 
-        data["seller"] = user.id
-        data["buyer"] = None
-        serializer = self.get_serializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(data=serializer.data)
-        else:
-            raise ValidationError(f"Not Valid {serializer.errors}")
+            data["seller"] = user.id
+            data["buyer"] = None
+            serializer = self.get_serializer(data=data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(data=serializer.data)
+            else:
+                raise ValidationError(serializer.errors)
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, status=status.HTTP_400_BAD_REQUEST
+            )
 
     def update(self, request, *args, **kwargs):
-        instance = self.get_object()
-        if instance.seller != request.user:
+        try:
+            instance = self.get_object()
+            if instance.seller != request.user:
+                raise PermissionDenied(
+                    "You do not have permission to update this object."
+                )
+
+            data = request.data
+            data["buyer"] = None
+            data["seller"] = request.user.id
+            serializer = self.get_serializer(instance, data=data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            else:
+                raise ValidationError(serializer.errors)
+        except PermissionDenied as e:
             return Response(
-                {"error": "You do not have permission to update this object."},
-                status=status.HTTP_403_FORBIDDEN,
+                {"error": str(e)}, status=status.HTTP_403_FORBIDDEN
             )
-        data = request.data
-        data["buyer"] = None
-        data["seller"] = request.user.id
-        serializer = self.get_serializer(instance, data=data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except ObjectDoesNotExist as e:
+            return Response(
+                {"error": str(e)}, status=status.HTTP_404_NOT_FOUND
+            )
 
     def partial_update(self, request, *args, **kwargs):
-        instance = self.get_object()
+        try:
+            instance = self.get_object()
 
-        if instance.seller == request.user:
-            return Response(
-                {"error": "You CAN'T buy your own house!"},
-                status=status.HTTP_403_FORBIDDEN,
+            if instance.seller == request.user:
+                raise PermissionDenied("You CAN'T buy your own house!")
+
+            if instance.buyer is not None:
+                raise PermissionDenied("House have been sold out!")
+
+            serializer = self.get_serializer(
+                instance, data=request.data, partial=True
             )
-        serializer = self.get_serializer(
-            instance, data=request.data, partial=True
-        )
-        if serializer.is_valid():
-            instance.status = "BAUGHT"
-            instance.buyer = request.user
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            if serializer.is_valid():
+                instance.status = "BAUGHT"
+                instance.buyer = request.user
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            else:
+                raise ValidationError(serializer.errors)
+        except PermissionDenied as e:
+            return Response(
+                {"error": str(e)}, status=status.HTTP_403_FORBIDDEN
+            )
+        except ObjectDoesNotExist as e:
+            return Response(
+                {"error": str(e)}, status=status.HTTP_404_NOT_FOUND
+            )
 
     def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        if instance.seller != request.user:
+        try:
+            instance = self.get_object()
+            if instance.seller != request.user:
+                raise PermissionDenied(
+                    "You do not have permission to delete this object."
+                )
+            if instance.buyer:
+                raise PermissionDenied(
+                    "This House does not belong to you anymore! so you can not delete it!"
+                )
+            self.perform_destroy(instance)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except PermissionDenied as e:
             return Response(
-                {
-                    "forbidden": "You do not have permission to delete this object."
-                },
-                status=status.HTTP_403_FORBIDDEN,
+                {"error": str(e)}, status=status.HTTP_403_FORBIDDEN
             )
-        if instance.buyer:
+        except ObjectDoesNotExist as e:
             return Response(
-                {
-                    "forbidden": "This House does not belong to you anymore! so you can not delete it!"
-                },
-                status=status.HTTP_403_FORBIDDEN,
+                {"error": str(e)}, status=status.HTTP_404_NOT_FOUND
             )
-        self.perform_destroy(instance)
-        return Response(status=status.HTTP_204_NO_CONTENT)
