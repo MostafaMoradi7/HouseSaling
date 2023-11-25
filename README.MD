@@ -64,7 +64,7 @@ Update database credentials, secret key, and any other necessary configuration.
 ## House Listing Operations
 
 - **Create a House Listing:** Send a POST request to `/api/houses/` with the required data.
-- **Update a House Listing:** Send a PATCH request to `/api/houses/<unique_id>/` with the updated data.
+- **Update a House Listing:** Send a PUT request to `/api/houses/<unique_id>/` with the updated data.
 - **Buy a House:** Send a PATCH request to `/api/houses/<unique_id>/` with the buyer's information.
 - **Delete a House Listing:** Send a DELETE request to `/api/houses/<unique_id>/`.
 
